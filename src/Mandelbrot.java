@@ -15,8 +15,10 @@ import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
 import org.yaml.snakeyaml.Yaml;
 
-public class Main {
+public class Mandelbrot {
     private static final String OUT_OF_MEMORY_ERR = "\n>> An OutOfMemoryError occured. Please reduce the image size and try again. <<";
+    private static final int PROGRESS_BAR_WIDTH = 30;
+
     private final int NUMTHREADS = Runtime.getRuntime().availableProcessors();
     private final int ESCAPE_RADIUS = 2;
     int width;
@@ -28,63 +30,69 @@ public class Main {
     int nMax;
     int[] data;
     int rowsCompleted = 0;
-    int progressBarWidth = 30;
     int finishedThreads = 0;
     long startTime;
     SwingWorker<int[], Integer>[] workers;
     int[] palette;
     int[] gradient;
     int color;
-    static Map<String, Object> args;
-    static String outputPath;
-    static String configPath;
     static boolean isVerbose = false;
     static boolean shouldOpen = false;
 
-    public static void main(String[] arguments) {
+    public static void main(String[] args) {
 
         int k = 0;
-        if (arguments[0].startsWith("-")) {
-            //
+        if (args[0].startsWith("-")) {
             k++;
-            if (arguments[0].indexOf('o') != -1)
+            if (args[0].indexOf('o') != -1)
                 shouldOpen = true;
-            if (arguments[0].indexOf('v') != -1)
+            if (args[0].indexOf('v') != -1)
                 isVerbose = true;
         }
 
-        configPath = arguments[k];
-        outputPath = arguments[k + 1];
-        Yaml yaml = new Yaml();
+        Mandelbrot mand = Mandelbrot.fromConfigFile(args[k]);
+        String outputPath = args[k + 1];
 
-        try {
-            InputStream inputStream = new FileInputStream(configPath);
-            args = (Map) yaml.load(inputStream);
-        } catch (FileNotFoundException err) {
-            System.err.println("> config file " + configPath + " was not found");
-            System.exit(-1);
-        }
+        mand.build(() -> {
+            // on progress update
+            double percentage = mand.rowsCompleted * 100.0D / (double) mand.height;
+            String progressStr = "";
 
-        new Main();
-    }
+            while (progressStr.length() < PROGRESS_BAR_WIDTH * (percentage / 100.0D))
+                progressStr += "#";
+            while (progressStr.length() < PROGRESS_BAR_WIDTH)
+                progressStr += " ";
 
-    public Main() {
-        SwingUtilities.invokeLater(this::init);
-    }
+            String str = "|" + progressStr + "| " + (double) Math.round(percentage * 10.0D) / 10.0D + "%";
+            str += percentage != 100.0D ? "   [in progress] \r" : "   [done]  ";
+            System.out.print(str);
+        }, () -> {
+            // on finish
+            mand.export(outputPath);
+            if (isVerbose) {
+                System.out.println("       ");
+                System.out.println("> output file: " + outputPath);
+                System.out.println("> configurations: ");
+                System.out.println("   - picture dimension: " + mand.width + "x" + mand.height);
+                System.out.println("   - min complex number: " + mand.zMinRe + (mand.zMinIm > 0.0D ? "+" : "")
+                        + mand.zMinIm + "i");
+                System.out.println("   - max complex number: " + mand.zMaxRe + (mand.zMaxIm > 0.0D ? "+" : "")
+                        + mand.zMaxIm + "i");
+                System.out.println("   - max iterations: " + mand.nMax);
+                System.out.println("   - set color: " + mand.color);
+                System.out.println("   - color gradient: " + Arrays.toString(mand.gradient));
+                System.out.println("> build information: ");
+                System.out.println(
+                        "   - build time: " + (double) (System.currentTimeMillis() - mand.startTime) / 1000.0D + "s");
+                long numIterationsTotal = mand.countTotalIterations();
+                System.out.println("   - total number of iterations: " + numIterationsTotal);
+                System.out.println("   - average number of iterations per pixel: "
+                        + (double) Math.round((double) numIterationsTotal / (double) mand.data.length * 100.0D)
+                                / 100.0D);
+            } else {
+                System.out.println("> output: " + outputPath);
+            }
 
-    void init() {
-        this.width = (Integer) args.get("width");
-        this.height = (Integer) args.get("height");
-        this.zMinRe = (Double) args.get("minRe");
-        this.zMinIm = (Double) args.get("minIm");
-        this.zMaxRe = (Double) args.get("maxRe");
-        this.zMaxIm = (Double) args.get("maxIm");
-        this.nMax = (Integer) args.get("nMax");
-        this.gradient = ((ArrayList<Integer>) args.get("gradient")).stream().mapToInt(i -> i).toArray();
-        this.color = (Integer) args.get("color");
-        this.palette = this.createColorPalette(this.color, this.gradient, this.nMax);
-        this.build(() -> {
-            this.export(outputPath);
             if (shouldOpen) {
                 try {
                     Desktop.getDesktop().open(new File(outputPath));
@@ -92,6 +100,62 @@ public class Main {
                 }
             }
         });
+    }
+
+    public static Mandelbrot fromConfigFile(String path) {
+        Yaml yaml = new Yaml();
+        Map<String, Object> yamlData = null;
+        try {
+            InputStream inputStream = new FileInputStream(path);
+            yamlData = (Map) yaml.load(inputStream);
+        } catch (FileNotFoundException err) {
+            System.err.println("> config file " + path + " was not found");
+            System.exit(-1);
+        }
+        return new Mandelbrot(yamlData);
+    }
+
+    public Mandelbrot(Map<String, Object> config) {
+        this.configure(config);
+    }
+
+    public boolean equalsConfig(Mandelbrot mandelbrot) {
+        if (this.width != mandelbrot.width)
+            return false;
+        if (this.height != mandelbrot.height)
+            return false;
+        if (this.zMinRe != mandelbrot.zMaxRe)
+            return false;
+        if (this.zMinIm != mandelbrot.zMinIm)
+            return false;
+        if (this.zMaxRe != mandelbrot.zMaxRe)
+            return false;
+        if (this.zMaxIm != mandelbrot.zMaxIm)
+            return false;
+        if (this.nMax != mandelbrot.nMax)
+            return false;
+        if (this.color != mandelbrot.color)
+            return false;
+        if (this.gradient != mandelbrot.gradient)
+            return false;
+        return true;
+    }
+
+    public void saveImage(String outputPath) {
+
+    }
+
+    void configure(Map<String, Object> data) {
+        this.width = (Integer) data.get("width");
+        this.height = (Integer) data.get("height");
+        this.zMinRe = (Double) data.get("minRe");
+        this.zMinIm = (Double) data.get("minIm");
+        this.zMaxRe = (Double) data.get("maxRe");
+        this.zMaxIm = (Double) data.get("maxIm");
+        this.nMax = (Integer) data.get("nMax");
+        this.gradient = ((ArrayList<Integer>) data.get("gradient")).stream().mapToInt(i -> i).toArray();
+        this.color = (Integer) data.get("color");
+        this.palette = this.createColorPalette(this.color, this.gradient, this.nMax);
     }
 
     public int[] createColorPalette(int color, int[] gradient, int nMax) {
@@ -188,7 +252,14 @@ public class Main {
 
     }
 
-    void build(final Runnable onFinish) {
+    void build(final Runnable onProgress, final Runnable onFinish) {
+
+        // make sure we are on the Swing UI Thread
+        if (!SwingUtilities.isEventDispatchThread()) {
+            SwingUtilities.invokeLater(() -> build(onProgress, onFinish));
+            return;
+        }
+
         double arImage = (double) this.width / (double) this.height;
         double arComplex = Math.abs(this.zMaxRe - this.zMinRe) / Math.abs(this.zMaxIm - this.zMinIm);
         if (arImage != arComplex) {
@@ -246,18 +317,7 @@ public class Main {
 
                 protected void process(List<Integer> rows) {
                     rowsCompleted = rowsCompleted += rows.size();
-                    double percentage = rowsCompleted * 100.0D / (double) height;
-                    String progressStr = "";
-
-                    while (progressStr.length() < progressBarWidth * (percentage / 100.0D))
-                        progressStr += "#";
-                    while (progressStr.length() < progressBarWidth)
-                        progressStr += " ";
-
-                    String str = "|" + progressStr + "| " + (double) Math.round(percentage * 10.0D) / 10.0D + "%";
-                    str += percentage != 100.0D ? "   [in progress] \r" : "   [done]  ";
-
-                    System.out.print(str);
+                    onProgress.run();
                 }
 
                 public void done() {
@@ -275,31 +335,6 @@ public class Main {
                     ++finishedThreads;
                     if (finishedThreads == workers.length) {
                         finishedThreads = 0;
-                    
-                        
-                        if (isVerbose) {
-                            System.out.println("       ");
-                            System.out.println("> output file: " + Main.outputPath);
-                            System.out.println("> configurations (" + Main.configPath + "):");
-                            System.out.println("   - picture dimension: " + width + "x" + height);
-                            System.out.println(
-                                    "   - min complex number: " + zMinRe + (zMinIm > 0.0D ? "+" : "") + zMinIm + "i");
-                            System.out.println(
-                                    "   - max complex number: " + zMaxRe + (zMaxIm > 0.0D ? "+" : "") + zMaxIm + "i");
-                            System.out.println("   - max iterations: " + nMax);
-                            System.out.println("   - set color: " + color);
-                            System.out.println("   - color gradient: " + Arrays.toString(gradient));
-                            System.out.println("> build information: ");
-                            System.out.println("   - build time: "
-                                    + (double) (System.currentTimeMillis() - startTime) / 1000.0D + "s");
-                            long numIterationsTotal = countTotalIterations();
-                            System.out.println("   - total number of iterations: " + numIterationsTotal);
-                            System.out.println("   - average number of iterations per pixel: "
-                                    + (double) Math.round((double) numIterationsTotal / (double) data.length * 100.0D)
-                                            / 100.0D);
-                        } else {
-                            System.out.println("> output: " + Main.outputPath);
-                        }
                         onFinish.run();
                     }
 
@@ -330,7 +365,7 @@ public class Main {
             double sqrZIm = zRe * zIm + zIm * zRe;
             zRe = sqrZRe + cRe;
             zIm = sqrZIm + cIm;
-            if (zRe * zRe + zIm * zIm > 4.0D) {
+            if (zRe * zRe + zIm * zIm > ESCAPE_RADIUS * ESCAPE_RADIUS) {
                 return n;
             }
         }
