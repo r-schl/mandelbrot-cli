@@ -5,15 +5,20 @@ This is an application to run on the command line.
 You can get a picture of the Mandelbrot set by entering this command: 
 
 ```bash
-java -jar mandelbrot-cmd.jar <configuration path> <output path>
+java -jar mandelbrot-cmd.jar [OPTIONS] <configuration path> <output path>
 ```
 
-The application reads the yaml data that is written to the specified configuration file and creates an image based on this data. This image is saved at the specified output path. 
+The application reads the yaml data that is written to the specified configuration file and creates an image based on this data. This image is saved at the specified output path. There are also optional arguments that can be added before specifying the configuration path: 
 
-For example:
+`-v` 	print detailed information about the calculation (verbose)
+`-o` 	open the image after the calculation is completed
+
+These arguments can also be combined. For example: `-vo` or `-ov`. 
+
+A correct command might look like this:
 
 ```bash
-java -jar mandelbrot-cmd.jar ./config.yaml ./a-nice-picture.png
+java -jar mandelbrot-cmd.jar -vo ./config.yaml ./aNicePicture.png
 ```
 
 The configuration file must be of type yaml and be structured as follows: 
