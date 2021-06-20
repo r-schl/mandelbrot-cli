@@ -1,0 +1,16 @@
+# Dimension of the image in px
+width: 1000
+height: 1000
+# Area of the complex plane given by z_min and z_max
+minRe: -1.5
+minIm: -1.5
+maxRe: 1.5
+maxIm: 1.5
+# Maximum number of iterations
+nMax: 10000
+# Color for points inside the mandelbrot set
+color: 0x000000
+# Color gradient for the points outside the mandelbrot set
+# - first color is for points that diverge after 1 iteration
+# - last color is for points that diverge after nMax-1 iterations
+gradient: [0xFFFFFF, 0x0048ff, 0xffff00]

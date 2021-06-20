@@ -38,16 +38,29 @@ public class Main {
     static Map<String, Object> args;
     static String outputPath;
     static String configPath;
+    static boolean isVerbose = false;
+    static boolean shouldOpen = false;
 
     public static void main(String[] arguments) {
-        configPath = arguments[0];
-        outputPath = arguments[1];
+
+        int k = 0;
+        if (arguments[0].startsWith("-")) {
+            //
+            k++;
+            if (arguments[0].indexOf('o') != -1)
+                shouldOpen = true;
+            if (arguments[0].indexOf('v') != -1)
+                isVerbose = true;
+        }
+
+        configPath = arguments[k];
+        outputPath = arguments[k + 1];
         Yaml yaml = new Yaml();
 
         try {
             InputStream inputStream = new FileInputStream(configPath);
             args = (Map) yaml.load(inputStream);
-        } catch (FileNotFoundException var3) {
+        } catch (FileNotFoundException err) {
             System.err.println("> config file " + configPath + " was not found");
             System.exit(-1);
         }
@@ -67,17 +80,17 @@ public class Main {
         this.zMaxRe = (Double) args.get("maxRe");
         this.zMaxIm = (Double) args.get("maxIm");
         this.nMax = (Integer) args.get("nMax");
-        this.gradient = ((ArrayList) args.get("gradient")).stream().mapToInt(i -> i).toArray();
+        this.gradient = ((ArrayList<Integer>) args.get("gradient")).stream().mapToInt(i -> i).toArray();
         this.color = (Integer) args.get("color");
         this.palette = this.createColorPalette(this.color, this.gradient, this.nMax);
         this.build(() -> {
             this.export(outputPath);
-
-            try {
-                Desktop.getDesktop().open(new File(outputPath));
-            } catch (IOException var2) {
+            if (shouldOpen) {
+                try {
+                    Desktop.getDesktop().open(new File(outputPath));
+                } catch (IOException err) {
+                }
             }
-
         });
     }
 
@@ -168,8 +181,8 @@ public class Main {
             } catch (IOException var5) {
                 var5.printStackTrace();
             }
-        } catch (OutOfMemoryError var6) {
-            System.out.println("\n>> An OutOfMemoryError occured. Please reduce the image size and try again. <<");
+        } catch (OutOfMemoryError err) {
+            System.out.println(OUT_OF_MEMORY_ERR);
             System.exit(-1);
         }
 
@@ -187,7 +200,8 @@ public class Main {
         this.data = new int[this.width * this.height];
         this.workers = new SwingWorker[this.NUMTHREADS];
 
-        for (final int i = 0; i < this.NUMTHREADS; ++i) {
+        for (int i = 0; i < this.NUMTHREADS; i++) {
+            final int k = i;
             if (this.workers[i] != null) {
                 try {
                     this.workers[i].cancel(true);
@@ -207,8 +221,8 @@ public class Main {
                     this.xBegin = 0;
                     this.xEnd = width;
                     this.xRange = this.xEnd - this.xBegin;
-                    this.yBegin = i * (height / NUMTHREADS);
-                    this.yEnd = i * (height / NUMTHREADS) + height / NUMTHREADS;
+                    this.yBegin = k * (height / NUMTHREADS);
+                    this.yEnd = k * (height / NUMTHREADS) + height / NUMTHREADS;
                     this.yRange = this.yEnd - this.yBegin;
                     int[] part = new int[this.xRange * this.yRange];
 
@@ -241,7 +255,7 @@ public class Main {
                         progressStr += " ";
 
                     String str = "|" + progressStr + "| " + (double) Math.round(percentage * 10.0D) / 10.0D + "%";
-                    str += percentage != 100.0D ? "   [in progress] \r" : "   [done]         \n";
+                    str += percentage != 100.0D ? "   [in progress] \r" : "   [done]  ";
 
                     System.out.print(str);
                 }
@@ -249,12 +263,11 @@ public class Main {
                 public void done() {
                     try {
                         int[] part = (int[]) this.get();
-                        System.arraycopy(part, 0, data, part.length * i, part.length);
+                        System.arraycopy(part, 0, data, part.length * k, part.length);
                     } catch (ExecutionException | InterruptedException var3) {
                         String message = var3.getCause().getMessage();
                         if (message.equals("Java heap space")) {
-                            System.out.println(
-                                    "\n>> An OutOfMemoryError occured. Please reduce the image size and try again. <<");
+                            System.out.println(OUT_OF_MEMORY_ERR);
                             System.exit(-1);
                         }
                     }
@@ -262,24 +275,31 @@ public class Main {
                     ++finishedThreads;
                     if (finishedThreads == workers.length) {
                         finishedThreads = 0;
-                        System.out.println("> output file: " + Main.outputPath);
-                        System.out.println("> configurations (" + Main.configPath + "):");
-                        System.out.println("   - picture dimension: " + width + "x" + height);
-                        System.out.println(
-                                "   - min complex number: " + zMinRe + (zMinIm > 0.0D ? "+" : "") + zMinIm + "i");
-                        System.out.println(
-                                "   - max complex number: " + zMaxRe + (zMaxIm > 0.0D ? "+" : "") + zMaxIm + "i");
-                        System.out.println("   - max iterations: " + nMax);
-                        System.out.println("   - set color: " + color);
-                        System.out.println("   - color gradient: " + Arrays.toString(gradient));
-                        System.out.println("> build information: ");
-                        System.out.println("   - build time: "
-                                + (double) (System.currentTimeMillis() - startTime) / 1000.0D + "s");
-                        long numIterationsTotal = countTotalIterations();
-                        System.out.println("   - total number of iterations: " + numIterationsTotal);
-                        System.out.println("   - average number of iterations per pixel: "
-                                + (double) Math.round((double) numIterationsTotal / (double) data.length * 100.0D)
-                                        / 100.0D);
+                    
+                        
+                        if (isVerbose) {
+                            System.out.println("       ");
+                            System.out.println("> output file: " + Main.outputPath);
+                            System.out.println("> configurations (" + Main.configPath + "):");
+                            System.out.println("   - picture dimension: " + width + "x" + height);
+                            System.out.println(
+                                    "   - min complex number: " + zMinRe + (zMinIm > 0.0D ? "+" : "") + zMinIm + "i");
+                            System.out.println(
+                                    "   - max complex number: " + zMaxRe + (zMaxIm > 0.0D ? "+" : "") + zMaxIm + "i");
+                            System.out.println("   - max iterations: " + nMax);
+                            System.out.println("   - set color: " + color);
+                            System.out.println("   - color gradient: " + Arrays.toString(gradient));
+                            System.out.println("> build information: ");
+                            System.out.println("   - build time: "
+                                    + (double) (System.currentTimeMillis() - startTime) / 1000.0D + "s");
+                            long numIterationsTotal = countTotalIterations();
+                            System.out.println("   - total number of iterations: " + numIterationsTotal);
+                            System.out.println("   - average number of iterations per pixel: "
+                                    + (double) Math.round((double) numIterationsTotal / (double) data.length * 100.0D)
+                                            / 100.0D);
+                        } else {
+                            System.out.println("> output: " + Main.outputPath);
+                        }
                         onFinish.run();
                     }
 
