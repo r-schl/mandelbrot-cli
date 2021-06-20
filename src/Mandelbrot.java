@@ -10,10 +10,14 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Function;
+
 import javax.imageio.ImageIO;
 import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
 import org.yaml.snakeyaml.Yaml;
+
+import jdk.jfr.Percentage;
 
 public class Mandelbrot {
     private static final String OUT_OF_MEMORY_ERR = "\n>> An OutOfMemoryError occured. Please reduce the image size and try again. <<";
@@ -30,6 +34,7 @@ public class Mandelbrot {
     int nMax;
     int[] data;
     int rowsCompleted = 0;
+    double percentageCompleted = 0;
     int finishedThreads = 0;
     long startTime;
     SwingWorker<int[], Integer>[] workers;
@@ -53,22 +58,19 @@ public class Mandelbrot {
         Mandelbrot mand = Mandelbrot.fromConfigFile(args[k]);
         String outputPath = args[k + 1];
 
-        mand.build(() -> {
-            // on progress update
-            double percentage = mand.rowsCompleted * 100.0D / (double) mand.height;
+        mand.build((percentage) -> { // on progress update
+            ///////////////////////
             String progressStr = "";
-
             while (progressStr.length() < PROGRESS_BAR_WIDTH * (percentage / 100.0D))
                 progressStr += "#";
             while (progressStr.length() < PROGRESS_BAR_WIDTH)
                 progressStr += " ";
-
             String str = "|" + progressStr + "| " + (double) Math.round(percentage * 10.0D) / 10.0D + "%";
             str += percentage != 100.0D ? "   [in progress] \r" : "   [done]  ";
             System.out.print(str);
-        }, () -> {
-            // on finish
-            mand.export(outputPath);
+            ///////////////////////
+        }, () -> { // on finish
+            ///////////////////////
             if (isVerbose) {
                 System.out.println("       ");
                 System.out.println("> output file: " + outputPath);
@@ -93,12 +95,15 @@ public class Mandelbrot {
                 System.out.println("> output: " + outputPath);
             }
 
+            mand.export(outputPath);
+
             if (shouldOpen) {
                 try {
                     Desktop.getDesktop().open(new File(outputPath));
                 } catch (IOException err) {
                 }
             }
+            ///////////////////////
         });
     }
 
@@ -252,7 +257,7 @@ public class Mandelbrot {
 
     }
 
-    void build(final Runnable onProgress, final Runnable onFinish) {
+    void build(final DoubleRunnable onProgress, final Runnable onFinish) {
 
         // make sure we are on the Swing UI Thread
         if (!SwingUtilities.isEventDispatchThread()) {
@@ -270,6 +275,8 @@ public class Mandelbrot {
         this.startTime = System.currentTimeMillis();
         this.data = new int[this.width * this.height];
         this.workers = new SwingWorker[this.NUMTHREADS];
+        this.percentageCompleted = 0;
+        this.rowsCompleted = 0;
 
         for (int i = 0; i < this.NUMTHREADS; i++) {
             final int k = i;
@@ -316,8 +323,9 @@ public class Mandelbrot {
                 }
 
                 protected void process(List<Integer> rows) {
-                    rowsCompleted = rowsCompleted += rows.size();
-                    onProgress.run();
+                    rowsCompleted = rowsCompleted + rows.size();
+                    percentageCompleted = rowsCompleted * 100.0D / (double) height;
+                    onProgress.run(percentageCompleted);
                 }
 
                 public void done() {
@@ -380,5 +388,10 @@ public class Mandelbrot {
         this.zMinIm = -rangeIm / (2.0D * factor) + im;
         this.zMaxRe = rangeRe / (2.0D * factor) + re;
         this.zMaxIm = rangeIm / (2.0D * factor) + im;
+    }
+
+    @FunctionalInterface
+    interface DoubleRunnable {
+        void run(double val);
     }
 }
