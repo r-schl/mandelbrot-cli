@@ -25,13 +25,24 @@ public class Mandelbrot {
 
     private final int NUMTHREADS = Runtime.getRuntime().availableProcessors();
     private final int ESCAPE_RADIUS = 2;
-    int width;
-    int height;
-    double zMinRe;
-    double zMinIm;
-    double zMaxRe;
-    double zMaxIm;
-    int nMax;
+
+    /**
+     * Configuration
+     */
+    int width; // X-dimension of the image in pixels
+    int height; // Y-dimension of the image in pixels
+    double zMinRe; // Left side of the area of the complex plane
+    double zMinIm; // Bottom side of the area of the complex plane
+    double zMaxRe; // Right side of the area of the complex plane
+    double zMaxIm; // Top side of the area of the complex plane
+    int nMax; // Maximum number of iterations
+    int color; // Color for points inside the mandelbrot set
+    int[] gradient; // Color gradient for points outside the set (first color diverges after 1
+                    // iteration; last color diverges after nMax-1 iterations)
+
+    /**
+     * Data for the calculation
+     */
     int[] data;
     int rowsCompleted = 0;
     double percentageCompleted = 0;
@@ -39,8 +50,7 @@ public class Mandelbrot {
     long startTime;
     SwingWorker<int[], Integer>[] workers;
     int[] palette;
-    int[] gradient;
-    int color;
+
     static boolean isVerbose = false;
     static boolean shouldOpen = false;
 
@@ -124,6 +134,33 @@ public class Mandelbrot {
         this.configure(config);
     }
 
+    /**
+     * 
+     * @param width    X-dimension of the image in pixels
+     * @param height   Y-dimension of the image in pixels
+     * @param zMinRe   Left side of the area of the complex plane
+     * @param zMinIm   Bottom side of the area of the complex plane
+     * @param zMaxRe   Right side of the area of the complex plane
+     * @param zMaxIm   Top side of the area of the complex plane
+     * @param nMax     Maximum number of iterations
+     * @param color    Color for points inside the mandelbrot set
+     * @param gradient Color gradient for points outside the set (first color
+     *                 diverges after 1 iteration; last color diverges after nMax-1
+     *                 iterations)
+     */
+    public Mandelbrot(int width, int height, double zMinRe, double zMinIm, double zMaxRe, double zMaxIm, int nMax,
+            int color, int[] gradient) {
+        this.width = width;
+        this.height = height;
+        this.zMinRe = zMinRe;
+        this.zMinIm = zMinIm;
+        this.zMaxRe = zMaxRe;
+        this.zMaxIm = zMaxIm;
+        this.nMax = nMax;
+        this.color = color;
+        this.gradient = gradient;
+    }
+
     public boolean equalsConfig(Mandelbrot mandelbrot) {
         if (this.width != mandelbrot.width)
             return false;
@@ -146,10 +183,6 @@ public class Mandelbrot {
         return true;
     }
 
-    public void saveImage(String outputPath) {
-
-    }
-
     void configure(Map<String, Object> data) {
         this.width = (Integer) data.get("width");
         this.height = (Integer) data.get("height");
@@ -169,15 +202,12 @@ public class Mandelbrot {
             new Exception(OUT_OF_MEMORY_ERR).printStackTrace();
             System.exit(-1);
         }
-
         int tNum = gradient.length - 1;
         int tLength = (nMax - 1) / (gradient.length - 1);
         int r = (nMax - 1) % tNum;
-
         for (int i = 0; i < tNum - 1; ++i) {
             palette = this.combine(palette, this.transition(gradient[i], gradient[i + 1], tLength, false));
         }
-
         palette = this.combine(palette, this.transition(gradient[tNum - 1], gradient[tNum], tLength + r, true));
         return this.combine(palette, new int[] { color });
     }
