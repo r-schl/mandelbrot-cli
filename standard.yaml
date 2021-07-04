@@ -7,7 +7,7 @@ minIm: -1.5
 maxRe: 1.5
 maxIm: 1.5
 # Maximum number of iterations
-nMax: 30
+nMax: 100
 # Color for points inside the mandelbrot set
 color: 0x000000
 # Color gradient for the points outside the mandelbrot set

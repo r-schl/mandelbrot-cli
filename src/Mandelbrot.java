@@ -1,11 +1,16 @@
 import java.awt.Desktop;
 import java.awt.image.BufferedImage;
+import java.awt.image.ColorModel;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.awt.*;
+import java.awt.MultipleGradientPaint.ColorSpaceType;
+import java.awt.MultipleGradientPaint.CycleMethod;
+import java.awt.geom.AffineTransform;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -193,7 +198,8 @@ public class Mandelbrot {
         this.nMax = (Integer) data.get("nMax");
         this.gradient = ((ArrayList<Integer>) data.get("gradient")).stream().mapToInt(i -> i).toArray();
         this.color = (Integer) data.get("color");
-        this.palette = this.createColorPalette(this.color, this.gradient, this.nMax);
+        // this.createColorPalette(this.color, this.gradient, this.nMax);
+        this.palette = colorPalette2(this.color, this.gradient, this.nMax);
     }
 
     public int[] createColorPalette(int color, int[] gradient, int nMax) {
@@ -210,6 +216,40 @@ public class Mandelbrot {
         }
         palette = this.combine(palette, this.transition(gradient[tNum - 1], gradient[tNum], tLength + r, true));
         return this.combine(palette, new int[] { color });
+    }
+
+    private int[] colorPalette2(int color, int[] gradient, int nMax) {
+        if (gradient.length == 0) {
+            new Exception("User must specify at least one color!");
+            System.exit(-1);
+        }
+
+        if (gradient.length == 1) {
+            int[] palette = new int[nMax + 1];
+            for (int i = 1; i < nMax; i++) {
+                palette[i] = gradient[0];
+            }
+            palette[nMax] = color;
+            return palette;
+        }
+
+        float[] fractions = new float[gradient.length];
+        for (int i = 0; i < fractions.length; i++)
+            fractions[i] = ((float) 1 / gradient.length) * i;
+        Color[] colorsGradient = new Color[gradient.length];
+        for (int i = 0; i < colorsGradient.length; i++)
+            colorsGradient[i] = new Color(gradient[i]);
+        LinearGradientPaint p = new LinearGradientPaint(0, 0, nMax - 1, 1, fractions, colorsGradient);
+        BufferedImage bi = new BufferedImage(nMax - 1, 1, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g2d = bi.createGraphics();
+        g2d.setPaint(p);
+        g2d.fillRect(0, 0, nMax - 1, 1);
+        g2d.dispose();
+        int[] palette = new int[nMax + 1]; // because index 0 is placeholder
+        for (int i = 0; i < bi.getWidth(); i++)
+            palette[i + 1] = bi.getRGB(i, 0);
+        palette[nMax] = color;
+        return palette;
     }
 
     private int[] combine(int[] arr1, int[] arr2) {
