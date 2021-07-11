@@ -1,6 +1,6 @@
 # Dimension of the image in px
-width: 10000
-height: 10000
+width: 500
+height: 500
 # Area of the complex plane given by z_min and z_max
 minRe: -1.5
 minIm: -1.5
