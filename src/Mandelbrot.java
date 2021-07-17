@@ -35,7 +35,7 @@ public class Mandelbrot {
     private double zMaxRe; // Right side of the area of the complex plane
     private double zMaxIm; // Top side of the area of the complex plane
     private int nMax; // Maximum number of iterations
-    private int color; // Color for points inside the mandelbrot set
+    private int colorInside; // Color for points inside the mandelbrot set
     private int[] gradient; // Color gradient for points outside the set (first color diverges after 1
     // iteration; last color diverges after nMax-1 iterations)
 
@@ -49,6 +49,8 @@ public class Mandelbrot {
     private long startTime;
     private SwingWorker<int[], Integer>[] workers;
     private int[] palette;
+
+    private boolean isBuilt = false;
 
     private static boolean isVerbose = false;
     private static boolean shouldOpen = false;
@@ -64,7 +66,7 @@ public class Mandelbrot {
                 isVerbose = true;
         }
 
-        Mandelbrot mand = Mandelbrot.fromFile(args[k]);
+        Mandelbrot mand = Mandelbrot.fromYamlFile(args[k]);
         String outputPath = args[k + 1];
 
         mand.build((percentage) -> { // on progress update
@@ -90,7 +92,7 @@ public class Mandelbrot {
                 System.out.println("   - max complex number: " + mand.zMaxRe + (mand.zMaxIm > 0.0D ? "+" : "")
                         + mand.zMaxIm + "i");
                 System.out.println("   - max iterations: " + mand.nMax);
-                System.out.println("   - set color: " + mand.color);
+                System.out.println("   - set color: " + mand.colorInside);
                 System.out.println("   - color gradient: " + Arrays.toString(mand.gradient));
                 System.out.println("> build information: ");
                 System.out.println(
@@ -116,7 +118,7 @@ public class Mandelbrot {
         });
     }
 
-    public static Mandelbrot fromFile(String path) {
+    public static Mandelbrot fromYamlFile(String path) {
         Yaml yaml = new Yaml();
         Map<String, Object> yamlData = null;
         try {
@@ -127,10 +129,6 @@ public class Mandelbrot {
             System.exit(-1);
         }
         return new Mandelbrot(yamlData);
-    }
-
-    public Mandelbrot(Map<String, Object> config) {
-        this.configure(config);
     }
 
     /**
@@ -148,7 +146,7 @@ public class Mandelbrot {
      *                 iterations)
      */
     public Mandelbrot(int width, int height, double zMinRe, double zMinIm, double zMaxRe, double zMaxIm, int nMax,
-            int color, int[] gradient) {
+            int colorInside, int[] gradient) {
         this.width = width;
         this.height = height;
         this.zMinRe = zMinRe;
@@ -156,55 +154,125 @@ public class Mandelbrot {
         this.zMaxRe = zMaxRe;
         this.zMaxIm = zMaxIm;
         this.nMax = nMax;
-        this.color = color;
+        this.colorInside = colorInside;
         this.gradient = gradient;
-        this.palette = createColorPalette(this.color, this.gradient, this.nMax);
-    }
-
-    public void set(String key, Object data) {
-        switch (key) {
-            case "width":
-                this.width = (Integer) data;
-                break;
-            case "height":
-                this.height = (Integer) data;
-                break;
-            case "minRe":
-                this.zMinRe = (Double) data;
-                break;
-            case "minIm":
-                this.zMinIm = (Double) data;
-                break;
-            case "maxRe":
-                this.zMaxRe = (Double) data;
-                break;
-            case "maxIm":
-                this.zMaxIm = (Double) data;
-                break;
-            case "nMax":
-                this.nMax = (Integer) data;
-                break;
-            case "color":
-                this.color = (Integer) color;
-                break;
-            case "gradient":
-                this.gradient = ((ArrayList<Integer>) data).stream().mapToInt(i -> i).toArray();
-                break;
-        }
-    }
-
-    public Mandelbrot copy() {
-        return new Mandelbrot(this);
+        this.palette = createColorPalette(this.colorInside, this.gradient, this.nMax);
     }
 
     public Mandelbrot(Mandelbrot other) {
-        this(other.width, other.height, other.zMinRe, other.zMinIm, other.zMaxRe, other.zMaxIm, other.nMax, other.color,
-                other.gradient);
+        this(other.width, other.height, other.zMinRe, other.zMinIm, other.zMaxRe, other.zMaxIm, other.nMax,
+                other.colorInside, other.gradient);
     }
 
+    public Mandelbrot(Map<String, Object> config) {
+        this.width = (Integer) config.get("width");
+        this.height = (Integer) config.get("height");
+        this.zMinRe = (Double) config.get("minRe");
+        this.zMinIm = (Double) config.get("minIm");
+        this.zMaxRe = (Double) config.get("maxRe");
+        this.zMaxIm = (Double) config.get("maxIm");
+        this.nMax = (Integer) config.get("nMax");
+        this.gradient = ((ArrayList<Integer>) config.get("gradient")).stream().mapToInt(i -> i).toArray();
+        this.colorInside = (Integer) config.get("color");
+        this.palette = createColorPalette(this.colorInside, this.gradient, this.nMax);
+    }
+
+    // Get Methods
+
+    public int getWidth() {
+        return this.width;
+    }
+
+    public int getHeight() {
+        return this.height;
+    }
+
+    public double getMinRe() {
+        return this.zMinRe;
+    }
+
+    public double getMinIm() {
+        return this.zMinIm;
+    }
+
+    public double getMaxRe() {
+        return this.zMaxRe;
+    }
+
+    public double getMaxIm() {
+        return this.zMaxIm;
+    }
+
+    public int getNMax() {
+        return this.nMax;
+    }
+
+    public int getColorInside() {
+        return this.colorInside;
+    }
+
+    public int[] getGradient() {
+        return this.gradient;
+    }
+
+    public int[] getData() {
+        if (!isBuilt)
+            return null;
+        return this.data;
+    }
+
+    public int[] getImage() {
+        if (!isBuilt)
+            return null;
+        int[] img = new int[this.width * this.height];
+        for (int i = 0; i < this.data.length; ++i) {
+            img[i] = this.palette[this.data[i]];
+        }
+        return img;
+    }
+
+    public boolean isBuilt() {
+        return this.isBuilt;
+    }
+
+    /**
+     * This method returns a new Mandelbrot object with the same configurations as
+     * this one.
+     * 
+     * @return a copy of this Mandelbrot object
+     */
+    public Mandelbrot getCopy() {
+        return new Mandelbrot(this);
+    }
+
+    /**
+     * This method returns a new Mandelbrot object that is created by enlarging the
+     * area of the complex plane of this object by a certain factor.
+     * 
+     * @param re     real part of a number of the complex plane
+     * @param im     imaginary part of a number of the complex plane
+     * @param factor zoom factor
+     * @return
+     */
+    public Mandelbrot getZoom(double re, double im, double factor) {
+        double rangeRe = Math.abs(this.zMaxRe - this.zMinRe);
+        double rangeIm = Math.abs(this.zMaxIm - this.zMinIm);
+        double newZMinRe = -rangeRe / (2.0D * factor) + re;
+        double newZMinIm = -rangeIm / (2.0D * factor) + im;
+        double newZMaxRe = rangeRe / (2.0D * factor) + re;
+        double newZMaxIm = rangeIm / (2.0D * factor) + im;
+        return new Mandelbrot(this.width, this.height, newZMinRe, newZMinIm, newZMaxRe, newZMaxIm, this.nMax,
+                this.colorInside, this.gradient);
+    }
+
+    /**
+     * This Methods checks if the configuration of two Mandelbrot objects are the
+     * same.
+     */
     @Override
     public boolean equals(Object o) {
-        if (!(o instanceof Mandelbrot)) return false;
+        if (!(o instanceof Mandelbrot))
+            return false;
         Mandelbrot mandelbrot = (Mandelbrot) o;
         if (this.width != mandelbrot.width)
             return false;
@@ -220,26 +288,22 @@ public class Mandelbrot {
             return false;
         if (this.nMax != mandelbrot.nMax)
             return false;
-        if (this.color != mandelbrot.color)
+        if (this.colorInside != mandelbrot.colorInside)
             return false;
         if (!Arrays.equals(this.gradient, mandelbrot.gradient))
             return false;
         return true;
     }
 
-    public void configure(Map<String, Object> data) {
-        this.width = (Integer) data.get("width");
-        this.height = (Integer) data.get("height");
-        this.zMinRe = (Double) data.get("minRe");
-        this.zMinIm = (Double) data.get("minIm");
-        this.zMaxRe = (Double) data.get("maxRe");
-        this.zMaxIm = (Double) data.get("maxIm");
-        this.nMax = (Integer) data.get("nMax");
-        this.gradient = ((ArrayList<Integer>) data.get("gradient")).stream().mapToInt(i -> i).toArray();
-        this.color = (Integer) data.get("color");
-        this.palette = createColorPalette(this.color, this.gradient, this.nMax);
-    }
-
+    /**
+     * This Methods creates a color palette based on a color for the inside of the
+     * set and a color gradient characterized by multiple colors
+     * 
+     * @param color    color for the inside of the set
+     * @param gradient color gradient for the outside of the set
+     * @param nMax     maximum number of iterations
+     * @return
+     */
     private int[] createColorPalette(int color, int[] gradient, int nMax) {
         if (gradient.length == 0) {
             System.err.println(">> User must specify at least one color of the color gradient. <<");
@@ -274,31 +338,15 @@ public class Mandelbrot {
         return palette;
     }
 
-    private int[] toImage() {
-        int[] img = new int[this.width * this.height];
-
-        for (int i = 0; i < this.data.length; ++i) {
-            img[i] = this.palette[this.data[i]];
-        }
-
-        return img;
-    }
-
-    private int countActivePixels() {
-        int c = 0;
-
-        for (int i = 0; i < this.data.length; ++i) {
-            if (this.data[i] == 1) {
-                ++c;
-            }
-        }
-
-        return c;
-    }
-
+    /**
+     * This method exports the Mandelbrot object into an image. It can only be
+     * called when finished building.
+     * 
+     * @param path export path
+     */
     public void export(String path) {
         try {
-            int[] img = this.toImage();
+            int[] img = this.getImage();
             BufferedImage image = new BufferedImage(this.width, this.height, 1);
             image.setRGB(0, 0, this.width, this.height, img, 0, this.width);
 
@@ -324,6 +372,13 @@ public class Mandelbrot {
         // make sure we are on the Swing UI Thread
         if (!SwingUtilities.isEventDispatchThread()) {
             SwingUtilities.invokeLater(() -> build(onProgress, onFinish));
+            return;
+        }
+
+        if (isBuilt) {
+            // the mandelbrot set is already built, no need to recalculate
+            onProgress.run(100);
+            onFinish.run();
             return;
         }
 
@@ -405,7 +460,12 @@ public class Mandelbrot {
                     ++finishedThreads;
                     if (finishedThreads == workers.length) {
                         finishedThreads = 0;
+                        isBuilt = true;
                         onFinish.run();
+                        // clear the data
+                        data = null;
+                        workers = null;
+                        palette = null;
                     }
 
                 }
@@ -429,7 +489,6 @@ public class Mandelbrot {
     private int iterate(double cRe, double cIm) {
         double zRe = 0.0D;
         double zIm = 0.0D;
-
         for (int n = 1; n <= this.nMax; ++n) {
             double sqrZRe = zRe * zRe - zIm * zIm;
             double sqrZIm = zRe * zIm + zIm * zRe;
@@ -439,17 +498,7 @@ public class Mandelbrot {
                 return n;
             }
         }
-
         return this.nMax;
-    }
-
-    public void zoom(double re, double im, double factor) {
-        double rangeRe = Math.abs(this.zMaxRe - this.zMinRe);
-        double rangeIm = Math.abs(this.zMaxIm - this.zMinIm);
-        this.zMinRe = -rangeRe / (2.0D * factor) + re;
-        this.zMinIm = -rangeIm / (2.0D * factor) + im;
-        this.zMaxRe = rangeRe / (2.0D * factor) + re;
-        this.zMaxIm = rangeIm / (2.0D * factor) + im;
     }
 
     @FunctionalInterface
