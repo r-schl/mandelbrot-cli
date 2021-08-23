@@ -462,10 +462,7 @@ public class Mandelbrot {
                         finishedThreads = 0;
                         isBuilt = true;
                         onFinish.run();
-                        // clear the data
-                        data = null;
-                        workers = null;
-                        palette = null;
+                        
                     }
 
                 }
