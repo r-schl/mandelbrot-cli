@@ -1,0 +1,14 @@
+# Area of the complex plane given by two numbers 'min' and 'max'
+minRe: 0.2510744339636479
+minIm: -8.195630207586878E-5
+maxRe: 0.2511202103308354
+maxIm: -3.617993488836878E-5
+# Max amount of iterations (iteration depth)
+nMax: 2000
+# Color (hexadecimal representation) for points inside of the mandelbrot set
+innerColor: -16777216
+# Color gradient (hexadecimal representation) for points outside of the mandelbrot set
+# > First color for n_max-1 iterations reached
+# > Last color for 0 iterations reached
+# At least one color must be specified
+colorGradient: [-6750055, -52480, -1]
