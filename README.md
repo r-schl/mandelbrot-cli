@@ -24,18 +24,19 @@ java -jar mandelbrot-cmd.jar -vo ./config.yaml 500 500 ./aNicePicture.png
 The configuration file must be of type yaml and be structured as follows: 
 
 ```yaml
-# Area of the complex plane given by z_min and z_max
+# Area of the complex plane given by two numbers 'min' (lower left corner) and 'max' (upper right corner)
 minRe: -1.5
 minIm: -1.5
 maxRe: 1.5
 maxIm: 1.5
-# Maximum number of iterations
+# Maximum amount of iterations (iteration depth)
 nMax: 10000
-# Color for points inside the mandelbrot set
-color: 0x000000
-# Color gradient for the points outside the mandelbrot set
-# first color is for points that diverge after 1 iteration
-# last color is for points that diverge after nMax-1 iterations
-gradient: [0xFFFFFF, 0x0048ff, 0xffff00]
+# Color (hexadecimal representation) for points inside of the mandelbrot set
+innerColor: 0x000000
+# Color gradient (hexadecimal representation) for points outside of the mandelbrot set
+# > First color for n_max-1 iterations reached
+# > Last color for 0 iterations reached
+# At least one color must be specified
+colorGradient: [0xFFFFFF, 0x0048ff, 0xffff00]
 ```
 
