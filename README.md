@@ -1,4 +1,4 @@
-# mandelbrot-cmd
+# mandelbrot-cli
 
 This is an application to run on the command line. 
 
