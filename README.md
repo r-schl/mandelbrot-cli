@@ -18,7 +18,7 @@ These arguments can also be combined. For example: `-vo` or `-ov`.
 A correct command might look like this:
 
 ```bash
-java -jar mandelbrot-cmd.jar -vo ./config.yaml 500 500 ./aNicePicture.png
+java -jar mandelbrot-cmd.jar -vo ./config.yaml 3000 3000 ./aNicePicture.png 
 ```
 
 The configuration file must be of type yaml and be structured as follows: 
@@ -40,3 +40,4 @@ innerColor: 0x000000
 colorGradient: [0xFFFFFF, 0x0048ff, 0xffff00]
 ```
 
+![alt text](./aNicePicture.png)
