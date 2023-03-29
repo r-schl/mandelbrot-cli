@@ -2,13 +2,13 @@
 
 This is an application to run on the command line. 
 
-You can get a picture of the Mandelbrot set by entering this command: 
+You can get a picture of the Mandelbrot set by executing this application with following arguments: 
 
 ```bash
-java -jar mandelbrot-cmd.jar [OPTIONS] <configuration path> <picture width> <picture height> <output path>
+[OPTIONS] <configuration path> <picture width> <picture height> <output path>
 ```
 
-The application reads the yaml data that is written to the specified configuration file and creates an image based on this data. The dimensions of the image must be specified in the command itself. If the aspect ratio of the complex number plane viewport does not match the ratio specified in the command, a background pattern is created. This image is saved at the specified output path. There are also optional arguments that can be added before specifying the configuration path: 
+The application reads the yaml data that is written to the specified configuration file and creates an image based on this data. The dimensions of the image must be specified in the command itself. If the aspect ratio of the complex number plane view port does not match the ratio specified in the command, a background pattern is created. This image is saved at the specified output path. There are also optional arguments that can be added before specifying the configuration path: 
 
 `-v` 	prints detailed information about the calculation (verbose)
 `-o` 	opens the image after the calculation is completed
