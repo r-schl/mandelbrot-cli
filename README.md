@@ -1,5 +1,11 @@
 # mandelbrot-cli
 
+### Overview
+
+The Mandelbrot set is a set of complex numbers $c$ for which the function $f_c(z)=z^2+c$ does not diverge to infinity when iterated from $z=0$. If you represent each $c$ of this set in the complex number plane and assign a color value to each depending on whether and after how many iterations it becomes clear that the function $f_c(z)=z^2+c$ diverges towards infinity, a picture emerges. This application creates such an image based on configurations written in a file. 
+
+### How to use this application
+
 This is an application to run on the command line. 
 
 You can get a picture of the Mandelbrot set by executing this application with following arguments: 
@@ -14,6 +20,8 @@ The application reads the yaml data that is written to the specified configurati
 `-o` 	opens the image after the calculation is completed
 
 These arguments can also be combined. For example: `-vo` or `-ov`. 
+
+### Example interaction
 
 A correct command might look like this:
 
