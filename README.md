@@ -2,7 +2,7 @@
 
 ### Overview
 
-The Mandelbrot set is a set of complex numbers $c$ for which the function $f_c(z)=z^2+c$ does not diverge to infinity when iterated from $z=0$. If you represent each $c$ of this set in the complex number plane and assign a color value to each depending on whether and after how many iterations it becomes clear that the function $f_c(z)=z^2+c$ diverges towards infinity, a picture emerges. This application creates such an image based on configurations written in a file. 
+The Mandelbrot set is a set of complex numbers $c$ for which the sequence $(z_{c,n})$ with $z_{c,n+1}=z_{c,n}^2+c$ does not diverge to infinity when iterated from $z=0$. If you represent each $c$ of this set in the complex number plane and assign a color value to each depending on whether and after how many iterations it becomes clear that the function $f_c(z)=z^2+c$ diverges towards infinity, a picture emerges. This application creates such an image based on configurations written in a file. 
 
 ### What is $n_{max}$ and how is $\mathbb {M}$ calculated?
 
